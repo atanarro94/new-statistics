@@ -1,0 +1,13 @@
+! Variables for 3D statistics
+parameter (NSTAT3D = 3) ! should be in SIZE
+
+real STAT(lx1*ly1*lz1*lelt,NSTAT)
+real STAT_D(lx1*ly1*lz1*lelt)
+real DUIDXJ(lx1*ly1*lz1,lelt,3*ldim)
+real UR(lx1*ly1*lz1),US(lx1*ly1*lz1),UT(lx1*ly1*lz1)
+real VR(lx1*ly1*lz1),VS(lx1*ly1*lz1),VT(lx1*ly1*lz1)
+real WR(lx1*ly1*lz1),WS(lx1*ly1*lz1),WT(lx1*ly1*lz1)
+
+      common /statsr/ STAT_TINI, STAT_TEV, STAT_TCMM, STAT_TIO,
+           $     STAT_TSTART,STAT_ATIME
+	   

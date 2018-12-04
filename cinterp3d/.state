@@ -1,0 +1,6 @@
+SOURCE_ROOT=/scratch/atdr/nek5000_v17/Nek5000
+FC=mpif77
+FFLAGS=-I./inc_src -fdefault-real-8 -fdefault-double-8 -cpp
+CC=mpicc
+CFLAGS=-I./inc_src
+PPLIST= MPI UNDERSCORE TIMER

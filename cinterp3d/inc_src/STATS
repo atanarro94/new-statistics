@@ -1,0 +1,5 @@
+      integer STAT_LVAR
+      parameter (STAT_LVAR = 44) ! Total number of statistical fields
+	    
+      real STAT(lx1*ly1*lz1*lelt,STAT_LVAR)
+

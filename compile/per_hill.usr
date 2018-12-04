@@ -1,0 +1,269 @@
+C-----------------------------------------------------------------------
+C  nek5000 user-file template
+C
+C  user specified routines:
+C     - userbc : boundary conditions
+C     - useric : initial conditions
+C     - uservp : variable properties
+C     - userf  : local acceleration term for fluid
+C     - userq  : local source term for scalars
+C     - userchk: general purpose routine for checking errors etc. 
+C
+C-----------------------------------------------------------------------
+
+      subroutine uservp(ix,iy,iz,eg) ! set variable properties
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e,f,eg
+
+      udiff  = 0.0
+      utrans = 0.0
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+
+      subroutine userf(ix,iy,iz,ieg) 
+      include 'SIZE'
+      include 'NEKUSE'
+      include 'PARALLEL'
+      include 'TRIPF'
+      include 'INPUT'
+      include 'SOLN'
+
+      integer ix,iy,iz,ieg
+      integer iel,iii,i
+      
+      real*8 usponge(lx1,ly1,lz1,lelv),
+     &     vsponge(lx1,ly1,lz1,lelv), wsponge(lx1,ly1,lz1,lelv)
+
+      real*8 uss(lx1,ly1,lz1,lelv),
+     &     vss(lx1,ly1,lz1,lelv), wss(lx1,ly1,lz1,lelv)
+
+
+      COMMON /SPONGE/ usponge,vsponge,wsponge,uss,vss,wss
+      
+      real*8 dstar
+      real yscale,zscale,xscale,smf,xt,step
+
+      dstar = wallpar(5)
+      iel = gllel(ieg)
+      iii = (ieg-1)/(nnelx1x2(1))
+      fzt_u = fzt1(iz+iii*lz1,1)
+      fzt_d = fzt1(iz+iii*lz1,2)
+
+      ffx = 0.0
+      ffy=exp(-((x-xup)/(radiusx_up))**2.0
+     $        -((y-yup)/(radiusy_up))**2.0)*fzt_u
+     $        +exp(-((x-xlo)/(radiusx_lo))**2.0
+     $        -((y-ylo)/(radiusy_lo))**2.0)*fzt_d
+      ffz=0.0
+      
+      wss(ix,iy,iz,iel)=ffy
+      
+      return
+      end
+
+c-----------------------------------------------------------------------
+
+      subroutine userq(ix,iy,iz,eg) ! set source term
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e,f,eg
+
+      qvol   = 0.0
+      source = 0.0
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+
+      subroutine userbc(ix,iy,iz,iside,ieg) 
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      
+      ux = 0.0
+      uy = 0.0
+      uz = 0.0 
+      
+      return
+      end
+
+c-----------------------------------------------------------------------
+
+      subroutine useric(ix,iy,iz,ieg) ! set up initial conditions
+
+      include 'SIZE'
+      include 'NEKUSE'
+      include 'PARALLEL'
+
+      ux = 1.
+      uy = 0.
+      uz = 0.
+      
+      return
+      end
+
+c-----------------------------------------------------------------------
+
+      subroutine userchk()
+
+      implicit none
+
+      include 'SIZE'
+      include 'GEOM'                    ! xm1, ym1, zm1
+      include 'SOLN'                    ! T
+      include 'MASS'                    !BM1 for lambda2
+      include 'TSTEP'                   ! ISTEP
+      include 'INPUT'           ! PARAM(12) (DT)
+      include 'USERPAR'
+      include 'CHKPOINT'
+
+      integer lt
+      parameter (lt = lx1*ly1*lz1*lelv)
+
+      real*8 usponge(lx1,ly1,lz1,lelv),
+     $     vsponge(lx1,ly1,lz1,lelv), wsponge(lx1,ly1,lz1,lelv)
+
+      real*8 uss(lx1,ly1,lz1,lelv),
+     $     vss(lx1,ly1,lz1,lelv), wss(lx1,ly1,lz1,lelv)
+      
+      COMMON /SPONGE/ usponge,vsponge,wsponge,uss,vss,wss
+
+      logical exist_rst
+
+!    Read corrected MESH
+!-------------------------------------------------- 
+      if (istep .eq. 0) then   
+!         call opcopy(u1tmp,v1tmp,w1tmp,xm1,ym1,zm1)         ! Backup xyz coordinates
+!     check for IC to set up the fringe
+         inquire(file='per_hill.IC',exist=exist_rst)
+         if (exist_rst) then
+            if(nid.eq.0)then
+               write(*,*) '------------------------------------'
+               write(*,*) 'READ  IC  as the Fringe input'
+               write(*,*) '------------------------------------'
+            end if
+            initc(1) = 'per_hill.IC'
+            call setics
+            call opcopy(usponge,vsponge,wsponge,vx,vy,vz)
+         end if
+      end if
+!-------------------------------------------------- 
+      
+      if (ISTEP.eq.0) then
+         CHKPTSTEP=PARAM(70)
+         if (PARAM(71).eq.1) then
+            IFCHKPTRST=.TRUE.
+         else
+            IFCHKPTRST=.FALSE.
+         endif
+      endif
+            
+      call checkpoint           ! Restart check
+
+!--------------------------------------------------
+
+      call readtrip_par
+      call tripf
+      call stat_avg
+      return
+      end
+      
+c-----------------------------------------------------------------------
+      
+      subroutine usrdat()
+
+      return
+      end
+      
+c-----------------------------------------------------------------------
+
+      subroutine usrdat2()  
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+     
+      return
+      end
+
+c-----------------------------------------------------------------------
+      
+      subroutine usrdat3()
+
+      implicit none
+      
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      include 'TRIPF'
+
+      real bb
+      real ran2
+
+      integer i
+      if (nid.eq.0) write(*,*) 'INITIALIZATION OF TRIP FORCING'
+
+c     initialize ran2
+
+      seed = -32
+      bb=ran2(seed)
+
+      call readwallfile
+      do i=1,nwalls
+         call znekgen(i)
+      enddo
+      
+      return
+      end
+c---------------------------------------------------------------------- 
+c
+c automatically added by makenek
+      subroutine usrsetvert(glo_num,nel,nx,ny,nz) ! to modify glo_num
+      integer*8 glo_num(1)
+      return
+      end
+
+C=======================================================================
+
+c
+c automatically added by makenek
+      subroutine usrflt(rmult) ! user defined filter
+      include 'SIZE'
+      real rmult(lx1)
+      call rone(rmult,lx1)
+      return
+      end
+c
+c automatically added by makenek
+      subroutine userflux ! user defined flux
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      real fluxout(lx1*lz1)
+      return
+      end
+c
+c automatically added by makenek
+      subroutine userEOS ! user defined EOS 
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      return
+      end
+
+c automatically added by makenek
+      subroutine userqtl
+
+      call userqtl_scig
+
+      return
+      end
